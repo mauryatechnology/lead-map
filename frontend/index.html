@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadMapper — Google Maps Extractor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #070B14;
+  --surface: #0D1424;
+  --surface2: #121B2E;
+  --border: #1E2D45;
+  --border2: #243550;
+  --accent: #00D4FF;
+  --accent2: #FF3D6E;
+  --accent3: #7B61FF;
+  --text: #E8EEF8;
+  --text2: #8899BB;
+  --text3: #556680;
+  --success: #00E5A0;
+  --warning: #FFB800;
+  --error: #FF3D6E;
+  --glow: rgba(0, 212, 255, 0.15);
+  --glow2: rgba(255, 61, 110, 0.12);
+  --font: 'Space Grotesk', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Glow orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+.orb1 { width: 600px; height: 600px; background: rgba(0,212,255,0.06); top: -200px; right: -100px; }
+.orb2 { width: 500px; height: 500px; background: rgba(123,97,255,0.05); bottom: -200px; left: -100px; }
+.orb3 { width: 300px; height: 300px; background: rgba(255,61,110,0.05); top: 40%; left: 30%; }
+
+/* Layout */
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Header */
+header {
+  padding: 28px 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(0,212,255,0.3);
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logo-text span { color: var(--accent); }
+
+.badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+/* Main grid - Stacked layout */
+.main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 0;
+  min-height: calc(100vh - 100px);
+}
+
+/* Dashboard Top Row */
+.dashboard-top {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 250px;
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-top { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 800px) {
+  .dashboard-top { grid-template-columns: 1fr; }
+}
+
+/* No longer needed as sticky sidebar, but keeping class for card grouping */
+.sidebar {
+  display: contents;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,212,255,0.02) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.card:hover { border-color: var(--border2); }
+
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text3);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Form */
+.field {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.input-wrap {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+input, textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px 12px 42px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+}
+
+input::placeholder { color: var(--text3); }
+
+/* Speed control */
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.speed-label {
+  font-size: 12px;
+  color: var(--text3);
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+input[type="range"] {
+  padding: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  appearance: none;
+  cursor: pointer;
+  border: none;
+  box-shadow: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,212,255,0.5);
+}
+
+/* Buttons */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  color: #000;
+  box-shadow: 0 0 24px rgba(0,212,255,0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 30px rgba(0,212,255,0.4);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-danger {
+  background: rgba(255,61,110,0.15);
+  color: var(--accent2);
+  border: 1px solid rgba(255,61,110,0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(255,61,110,0.25);
+  box-shadow: 0 0 20px rgba(255,61,110,0.2);
+}
+
+.btn-export {
+  background: rgba(0,229,160,0.1);
+  color: var(--success);
+  border: 1px solid rgba(0,229,160,0.3);
+}
+
+.btn-export:hover {
+  background: rgba(0,229,160,0.2);
+  box-shadow: 0 0 20px rgba(0,229,160,0.2);
+}
+
+.btn-sheets {
+  background: rgba(123,97,255,0.1);
+  color: var(--accent3);
+  border: 1px solid rgba(123,97,255,0.3);
+}
+
+.btn-sheets:hover {
+  background: rgba(123,97,255,0.2);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Stats row */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Status indicator */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.pulse {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+}
+
+.pulse.running {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.pulse.completed { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.pulse.stopped { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.pulse.failed { background: var(--error); box-shadow: 0 0 8px var(--error); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Progress bar */
+.progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent3));
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill.indeterminate {
+  width: 40% !important;
+  animation: indeterminate 1.5s linear infinite;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* Main content */
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Table */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-title {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count-pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,212,255,0.1);
+  color: var(--accent);
+  border: 1px solid rgba(0,212,255,0.2);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: calc(100vh - 380px); /* Leave space for top cards */
+  min-height: 400px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+thead tr {
+  background: var(--surface2);
+}
+
+th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+tbody tr:hover { background: rgba(0,212,255,0.03); }
+tbody tr:last-child { border-bottom: none; }
+
+td {
+  padding: 12px 16px;
+  color: var(--text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-name { font-weight: 600; color: var(--text); }
+.td-city { color: var(--text2); }
+
+.td-phone {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--success);
+}
+
+.td-ig {
+  color: #E1306C;
+  font-weight: 500;
+}
+
+.td-url a {
+  color: var(--accent);
+  text-decoration: none;
+  max-width: 160px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.td-url a:hover { text-decoration: underline; }
+
+.td-about {
+  color: var(--text2);
+  font-size: 12px;
+  max-width: 250px;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.td-notes {
+  min-width: 150px;
+  max-width: 200px;
+  background: rgba(0,212,255,0.02);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 8px !important;
+  cursor: text;
+  white-space: normal;
+}
+
+.td-notes:focus {
+  background: rgba(0,212,255,0.05);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.phone-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.phone-btn {
+  font-size: 16px;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+}
+
+.phone-btn:hover { 
+  opacity: 1; 
+  background: rgba(0,212,255,0.1);
+  transform: scale(1.1);
+}
+
+.phone-btn.wa:hover { color: var(--success); background: rgba(0,229,160,0.1); }
+.phone-btn.tel:hover { color: var(--accent); background: rgba(0,212,255,0.1); }
+
+/* Sticky columns */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: var(--surface);
+}
+
+thead tr th.sticky-col {
+  z-index: 15;
+  background: var(--surface2);
+}
+
+.sticky-col-name {
+  left: 48px; /* Offset for # column */
+  z-index: 5;
+  background: var(--surface);
+}
+
+thead tr th.sticky-col-name {
+  z-index: 15;
+  background: var(--surface2);
+}
+
+tr:hover .sticky-col, tr:hover .sticky-col-name {
+  background: #121B2E;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 25px !important;
+}
+
+th.sortable:hover {
+  background: var(--border);
+  color: var(--accent);
+}
+
+th.sort-asc::after {
+  content: ' ↑';
+  position: absolute;
+  right: 8px;
+  color: var(--accent);
+  opacity: 1;
+}
+
+th.sort-desc::after {
+  content: ' ↓';
+  position: absolute;
+  right: 8px;
+  color: var(--accent);
+  opacity: 1;
+}
+
+th.sortable:not(.sort-asc):not(.sort-desc)::after {
+  content: ' ↕';
+  position: absolute;
+  right: 8px;
+  opacity: 0.2;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text3);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.empty-text {
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: var(--text2);
+}
+
+.empty-sub { font-size: 13px; }
+
+/* Row animation */
+@keyframes rowSlide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+tbody tr { animation: rowSlide 0.3s ease; }
+
+/* Notifications */
+.notif {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  backdrop-filter: blur(10px);
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.notif.success {
+  background: rgba(0,229,160,0.12);
+  border: 1px solid rgba(0,229,160,0.3);
+  color: var(--success);
+}
+
+.notif.error {
+  background: rgba(255,61,110,0.12);
+  border: 1px solid rgba(255,61,110,0.3);
+  color: var(--accent2);
+}
+
+.notif.info {
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--accent);
+}
+
+/* Job history */
+.job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.job-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.job-item:hover { border-color: var(--border2); }
+.job-item.active { border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.05); }
+
+.job-status-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-running { background: rgba(0,212,255,0.15); color: var(--accent); }
+.badge-completed { background: rgba(0,229,160,0.15); color: var(--success); }
+.badge-stopped { background: rgba(255,184,0,0.15); color: var(--warning); }
+.badge-failed { background: rgba(255,61,110,0.15); color: var(--error); }
+.badge-pending { background: rgba(136,153,187,0.15); color: var(--text2); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover { color: var(--text); background: var(--border); }
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px 8px 32px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  width: 200px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  width: 240px;
+}
+
+.search-wrap {
+  position: relative;
+}
+
+.search-wrap .si {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  font-size: 13px;
+  pointer-events: none;
+}
+/* Compact Dashboard */
+.dashboard-top {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-top { grid-template-columns: 1fr; }
+}
+
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: calc(100vh - 420px);
+  min-height: 400px;
+  background: rgba(0,0,0,0.2);
+}
+
+table {
+  width: 100%;
+  min-width: 1200px; /* Ensure scroll-x triggers */
+  border-collapse: collapse;
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📍</div>
+      <div class="logo-text">Lead<span>Mapper</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="badge">GOOGLE MAPS EXTRACTOR</span>
+      <button class="icon-btn" onclick="toggleDark()" title="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <div class="dashboard-top">
+      
+      <!-- 1. SETUP -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Extraction Setup</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+          <div class="field">
+            <label>GOOGLE MAPS URL</label>
+            <input type="url" id="mapsUrl" placeholder="Search URL..." style="padding-left:14px" />
+          </div>
+          <div class="field">
+            <label>SCROLL DELAY</label>
+            <div class="speed-row">
+              <input type="range" id="scrollDelay" min="0.5" max="4" step="0.5" value="1.5" />
+              <span class="speed-label" id="delayVal">1.5s</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+          <input type="text" id="cityName" placeholder="City (optional)" style="padding-left:14px; margin-bottom:12px" />
+          <input type="number" id="maxResults" placeholder="Max Results" style="padding-left:14px; margin-bottom:12px" />
+        </div>
+        <div style="display:flex; gap:10px">
+          <button class="btn btn-primary" id="startBtn" onclick="startExtraction()" style="flex:2">⚡ Start</button>
+          <button class="btn btn-danger" id="stopBtn" onclick="stopExtraction()" disabled style="flex:1">⏹ Stop</button>
+        </div>
+      </div>
+
+      <!-- 2. STATUS -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Live Status</div>
+        <div class="stats-row" style="margin-bottom:12px">
+          <div class="stat-box"><div class="stat-num" id="totalLeads">0</div><div class="stat-label">Leads</div></div>
+          <div class="stat-box"><div class="stat-num" id="duration" style="color:var(--accent3)">0s</div><div class="stat-label">Timer</div></div>
+        </div>
+        <div class="status-bar" style="margin-bottom:8px">
+          <div class="pulse" id="statusDot"></div>
+          <span id="statusMsg" style="font-size:11px">Ready...</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+      </div>
+
+      <!-- 3. EXPORT -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Sync & Export</div>
+        <input type="url" id="sheetsUrl" placeholder="Google Sheets URL..." style="padding-left:14px; margin-bottom:12px" />
+        <button class="btn btn-export" id="excelBtn" onclick="downloadExcel()" disabled style="margin-bottom:8px">📥 Download Excel</button>
+        <button class="btn btn-sheets" id="sheetsBtn" onclick="pushToSheets()" disabled style="padding:10px">📊 Sync to Sheets</button>
+      </div>
+
+      <!-- 4. HISTORY (Restored to prevent null error) -->
+      <div class="card" id="historyCard" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Recent Jobs</div>
+        <div class="job-list" id="jobList"></div>
+      </div>
+
+    </div>
+
+    <!-- 📋 EXTRACTED LEADS -->
+    <div class="content-area">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            📋 Extracted Leads
+            <span class="count-pill" id="countPill">0 records</span>
+          </div>
+          <div class="filter-row">
+            <div class="search-wrap">
+              <span class="si">🔍</span>
+              <input class="search-input" id="filterInput" placeholder="Filter leads..." oninput="filterTable(this.value)" />
+            </div>
+            <button class="icon-btn" onclick="clearTable()" title="Clear table">🗑️</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="leadsTable">
+            <thead>
+              <tr>
+                <th class="sortable sticky-col" onclick="sortTable(0)">#</th>
+                <th class="sortable sticky-col-name" onclick="sortTable(1)">Name</th>
+                <th class="sortable" onclick="sortTable(2)">City</th>
+                <th class="sortable" onclick="sortTable(3)">Phone</th>
+                <th class="sortable" onclick="sortTable(4)">Instagram</th>
+                <th class="sortable" onclick="sortTable(5)">Website</th>
+                <th class="sortable" onclick="sortTable(6)">About</th>
+                <th class="sortable" onclick="sortTable(7)">Notes</th>
+              </tr>
+            </thead>
+            <tbody id="leadsBody">
+              <!-- empty state -->
+              <tr id="emptyRow">
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="empty-icon">🗺️</div>
+                    <div class="empty-text">No leads extracted yet</div>
+                    <div class="empty-sub">Enter a Google Maps search URL and click Start</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notification container -->
+<div id="notifArea"></div>
+
+<script>
+const API_BASE = 'http://localhost:8000/api';
+let currentJobId = null;
+let pollInterval = null;
+let startTime = null;
+let durationInterval = null;
+let allLeads = [];
+let sortDirection = 1;
+let lastSortedCol = -1;
+
+// ---- API calls ----
+
+async function startExtraction() {
+  const url = document.getElementById('mapsUrl').value.trim();
+  if (!url) { showNotif('Please enter a Google Maps URL', 'error'); return; }
+  
+  // Validation for mangled URLs (double protocols)
+  if (url.includes('https://') && url.lastIndexOf('https://') > 0) {
+    showNotif('Detected a mangled URL! Please clear the field and paste the link once.', 'error');
+    return;
+  }
+  
+  if (!url.includes('google.com/maps')) { showNotif('Must be a valid Google Maps URL', 'error'); return; }
+
+  const payload = {
+    maps_url: url,
+    city: document.getElementById('cityName').value.trim() || null,
+    spreadsheet_url: document.getElementById('sheetsUrl').value.trim() || null,
+    scroll_delay: parseFloat(document.getElementById('scrollDelay').value),
+    max_results: parseInt(document.getElementById('maxResults').value) || null,
+  };
+
+  try {
+    setUIState('starting');
+    const res = await fetch(`${API_BASE}/start-extraction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to start extraction');
+    }
+
+    const data = await res.json();
+    currentJobId = data.job_id;
+    allLeads = [];
+    clearTableRows();
+    startTime = Date.now();
+    setUIState('running');
+    startPoll();
+    startDurationTimer();
+    addJobToHistory(data.job_id, 'running');
+    showNotif('Extraction started!', 'success');
+  } catch (e) {
+    setUIState('idle');
+    showNotif(e.message, 'error');
+  }
+}
+
+async function stopExtraction() {
+  if (!currentJobId) return;
+  try {
+    await fetch(`${API_BASE}/stop-extraction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: currentJobId }),
+    });
+    showNotif('Stop signal sent...', 'info');
+  } catch (e) {
+    showNotif('Could not send stop signal', 'error');
+  }
+}
+
+async function downloadExcel() {
+  if (!currentJobId || allLeads.length === 0) {
+    showNotif('No leads to export', 'error');
+    console.warn('[Excel] Download attempted but no leads available or jobId missing.');
+    return;
+  }
+  
+  // Try to use the search query as filename
+  let filename = 'google_maps_leads.xlsx';
+  try {
+    const mapsUrl = document.getElementById('mapsUrl').value || '';
+    if (mapsUrl) {
+      const match = mapsUrl.match(/search\/([^/@]+)/);
+      if (match) filename = `${decodeURIComponent(match[1]).replace(/\+/g, '_')}_leads.xlsx`;
+    }
+  } catch (e) {
+    console.error('[Excel] Filename generation error:', e);
+  }
+
+  showNotif(`Preparing ${filename}...`, 'info');
+  console.log(`[Excel] Starting download for Job ID: ${currentJobId}, Filename: ${filename}`);
+  
+  try {
+    const res = await fetch(`${API_BASE}/download-excel/${currentJobId}?v=${Date.now()}`);
+    if (!res.ok) {
+      const errorJson = await res.json().catch(() => ({}));
+      throw new Error(errorJson.detail || 'Server failed to generate file');
+    }
+    
+    const blob = await res.blob();
+    console.log(`[Excel] Blob received. Size: ${blob.size} bytes. Content-Type: ${blob.type}`);
+    
+    if (blob.size < 1000) {
+      console.warn('[Excel] File seems too small. Check if leads are actually in the job.');
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.style.display = 'none';
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      console.log(`[Excel] Download triggered and cleanup complete.`);
+    }, 100);
+    
+    showNotif(`Downloading ${filename}...`, 'success');
+  } catch (e) {
+    console.error('[Excel] Fatal download error:', e);
+    showNotif(`Export error: ${e.message}`, 'error');
+  }
+}
+
+async function pushToSheets() {
+  if (!currentJobId || allLeads.length === 0) {
+    showNotif('No leads to push', 'error');
+    return;
+  }
+  const sheetsUrl = document.getElementById('sheetsUrl').value.trim();
+  if (!sheetsUrl) {
+    showNotif('Enter a Google Sheets URL first', 'error');
+    return;
+  }
+
+  try {
+    document.getElementById('sheetsBtn').disabled = true;
+    const res = await fetch(`${API_BASE}/push-to-sheets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: currentJobId, spreadsheet_url: sheetsUrl }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showNotif(`✅ Pushed ${data.appended} rows to Google Sheets`, 'success');
+    } else {
+      const msg = data.error || data.detail || 'Failed to push to Sheets';
+      showNotif(`Sheets error: ${msg}`, 'error');
+    }
+  } catch (e) {
+    showNotif(e.message, 'error');
+  } finally {
+    document.getElementById('sheetsBtn').disabled = false;
+  }
+}
+
+// ---- Polling ----
+
+function startPoll() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(pollStatus, 2000);
+}
+
+function stopPoll() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = null;
+}
+
+async function pollStatus() {
+  if (!currentJobId) return;
+  try {
+    const res = await fetch(`${API_BASE}/status/${currentJobId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    updateStatus(data);
+
+    if (['completed', 'stopped', 'failed'].includes(data.status)) {
+      stopPoll();
+      stopDurationTimer();
+      setUIState(data.status === 'failed' ? 'failed' : 'done');
+      updateJobHistory(currentJobId, data.status);
+
+      if (data.status === 'completed') showNotif(`✅ Done! Extracted ${data.total_found} leads`, 'success');
+      else if (data.status === 'stopped') showNotif(`⏹ Stopped — ${data.total_found} leads saved`, 'info');
+      else showNotif(`❌ Extraction failed: ${data.error}`, 'error');
+    }
+  } catch (e) {
+    console.warn('Poll error:', e);
+  }
+}
+
+function updateStatus(data) {
+  document.getElementById('totalLeads').textContent = data.total_found || 0;
+  document.getElementById('statusMsg').textContent = data.progress_message || 'Processing...';
+
+  const dot = document.getElementById('statusDot');
+  dot.className = `pulse ${data.status}`;
+
+  // Update table with new leads
+  if (data.leads && data.leads.length > allLeads.length) {
+    const newLeads = data.leads.slice(allLeads.length);
+    allLeads = data.leads;
+    appendLeadsToTable(newLeads);
+  }
+
+  // Progress bar animation (indeterminate while running)
+  const pb = document.getElementById('progressBar');
+  if (data.status === 'running') {
+    pb.className = 'progress-fill indeterminate';
+  } else {
+    pb.className = 'progress-fill';
+    pb.style.width = data.total_found > 0 ? '100%' : '0%';
+  }
+}
+
+// ---- Table ----
+
+function appendLeadsToTable(leads) {
+  const tbody = document.getElementById('leadsBody');
+  const emptyRow = document.getElementById('emptyRow');
+  if (emptyRow) emptyRow.style.display = 'none';
+
+  leads.forEach((lead, i) => {
+    const idx = allLeads.length - leads.length + i + 1;
+    const cleanPhone = lead.phone ? lead.phone.replace(/[^0-9]/g, '') : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="sticky-col" style="color:var(--text3);font-family:var(--mono);font-size:11px">${idx}</td>
+      <td class="td-name sticky-col-name">${esc(lead.name)}</td>
+      <td class="td-city">${esc(lead.city)}</td>
+      <td>
+        <div class="phone-links">
+          <span class="td-phone">${esc(lead.phone)}</span>
+          ${lead.phone ? `
+            <a href="tel:${cleanPhone}" class="phone-btn tel" title="Call">📞</a>
+            <a href="https://wa.me/${cleanPhone}" target="_blank" class="phone-btn wa" title="WhatsApp">💬</a>
+          ` : ''}
+        </div>
+      </td>
+      <td class="td-ig">
+        ${lead.instagram ? `<a href="https://instagram.com/${lead.instagram.replace('@', '')}" target="_blank" style="color:inherit;text-decoration:none">📷 ${esc(lead.instagram)}</a>` : ''}
+      </td>
+      <td class="td-url">
+        ${lead.website ? `<a href="${esc(lead.website)}" target="_blank" rel="noopener">🌐 ${shortUrl(lead.website)}</a>` : ''}
+      </td>
+      <td class="td-about" title="${esc(lead.about)}">${esc(lead.about)}</td>
+      <td class="td-notes" contenteditable="true" onblur="updateNote(${allLeads.length - leads.length + i}, this.textContent)">${esc(lead.notes || '')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const countPill = document.getElementById('countPill');
+  countPill.textContent = `${allLeads.length} record${allLeads.length !== 1 ? 's' : ''}`;
+}
+
+function clearTableRows() {
+  const tbody = document.getElementById('leadsBody');
+  tbody.innerHTML = `<tr id="emptyRow"><td colspan="8"><div class="empty-state"><div class="empty-icon">🗺️</div><div class="empty-text">No leads extracted yet</div><div class="empty-sub">Enter a Google Maps search URL and click Start</div></div></td></tr>`;
+  document.getElementById('countPill').textContent = '0 records';
+}
+
+function clearTable() {
+  if (allLeads.length === 0) return;
+  allLeads = [];
+  clearTableRows();
+}
+
+function filterTable(query) {
+  const q = query.toLowerCase();
+  const tbody = document.getElementById('leadsBody');
+  const rows = tbody.querySelectorAll('tr:not(#emptyRow)');
+  rows.forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+async function updateNote(index, text) {
+  if (allLeads[index]) {
+    allLeads[index].notes = text;
+  }
+  if (!currentJobId) return;
+  try {
+    await fetch(`${API_BASE}/update-lead-note/${currentJobId}/${index}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: text }),
+    });
+  } catch (e) {
+    console.warn('Failed to sync note to backend:', e);
+  }
+}
+
+function sortTable(colIdx) {
+  if (allLeads.length === 0) return;
+  
+  if (lastSortedCol === colIdx) {
+    sortDirection *= -1;
+  } else {
+    sortDirection = 1;
+    lastSortedCol = colIdx;
+  }
+
+  // Update UI headers
+  const ths = document.querySelectorAll('th.sortable');
+  ths.forEach(th => th.className = 'sortable' + (th.classList.contains('sticky-col') ? ' sticky-col' : '') + (th.classList.contains('sticky-col-name') ? ' sticky-col-name' : ''));
+  
+  const targetTh = ths[colIdx];
+  targetTh.classList.add(sortDirection === 1 ? 'sort-asc' : 'sort-desc');
+
+  const keys = ['index', 'name', 'city', 'phone', 'instagram', 'website', 'about', 'notes'];
+  const key = keys[colIdx];
+
+  allLeads.sort((a, b) => {
+    let valA = colIdx === 0 ? allLeads.indexOf(a) : (a[key] || '');
+    let valB = colIdx === 0 ? allLeads.indexOf(b) : (b[key] || '');
+    
+    if (typeof valA === 'string') valA = valA.toLowerCase();
+    if (typeof valB === 'string') valB = valB.toLowerCase();
+    
+    if (valA < valB) return -1 * sortDirection;
+    if (valA > valB) return 1 * sortDirection;
+    return 0;
+  });
+
+  renderAllLeads();
+}
+
+function renderAllLeads() {
+  clearTableRows();
+  const tbody = document.getElementById('leadsBody');
+  const emptyRow = document.getElementById('emptyRow');
+  if (emptyRow) emptyRow.style.display = 'none';
+
+  allLeads.forEach((lead, i) => {
+    const cleanPhone = lead.phone ? lead.phone.replace(/[^0-9]/g, '') : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="sticky-col" style="color:var(--text3);font-family:var(--mono);font-size:11px">${i + 1}</td>
+      <td class="td-name sticky-col-name">${esc(lead.name)}</td>
+      <td class="td-city">${esc(lead.city)}</td>
+      <td>
+        <div class="phone-links">
+          <span class="td-phone">${esc(lead.phone)}</span>
+          ${lead.phone ? `
+            <a href="tel:${cleanPhone}" class="phone-btn tel" title="Call">📞</a>
+            <a href="https://wa.me/${cleanPhone}" target="_blank" class="phone-btn wa" title="WhatsApp">💬</a>
+          ` : ''}
+        </div>
+      </td>
+      <td class="td-ig">
+        ${lead.instagram ? `<a href="https://instagram.com/${lead.instagram.replace('@', '')}" target="_blank" style="color:inherit;text-decoration:none">📷 ${esc(lead.instagram)}</a>` : ''}
+      </td>
+      <td class="td-url">
+        ${lead.website ? `<a href="${esc(lead.website)}" target="_blank" rel="noopener">🌐 ${shortUrl(lead.website)}</a>` : ''}
+      </td>
+      <td class="td-about" title="${esc(lead.about)}">${esc(lead.about)}</td>
+      <td class="td-notes" contenteditable="true" onblur="updateNote(${i}, this.textContent)">${esc(lead.notes || '')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---- UI State ----
+
+function setUIState(state) {
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const excelBtn = document.getElementById('excelBtn');
+  const sheetsBtn = document.getElementById('sheetsBtn');
+  const dot = document.getElementById('statusDot');
+  const msg = document.getElementById('statusMsg');
+  const pb = document.getElementById('progressBar');
+
+  if (state === 'starting' || state === 'running') {
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    excelBtn.disabled = true;
+    sheetsBtn.disabled = true;
+    dot.className = 'pulse running';
+    msg.textContent = state === 'starting' ? 'Launching browser...' : 'Extracting leads...';
+    pb.className = 'progress-fill indeterminate';
+  } else if (state === 'done') {
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    excelBtn.disabled = allLeads.length === 0;
+    sheetsBtn.disabled = allLeads.length === 0;
+    dot.className = 'pulse completed';
+    pb.className = 'progress-fill';
+    pb.style.width = '100%';
+  } else if (state === 'failed') {
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    excelBtn.disabled = allLeads.length === 0;
+    sheetsBtn.disabled = allLeads.length === 0;
+    dot.className = 'pulse failed';
+    pb.className = 'progress-fill';
+    pb.style.width = '0%';
+  } else {
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    excelBtn.disabled = true;
+    sheetsBtn.disabled = true;
+    dot.className = 'pulse';
+    msg.textContent = 'Idle — ready to extract';
+    pb.className = 'progress-fill';
+    pb.style.width = '0%';
+  }
+}
+
+// ---- Duration Timer ----
+
+function startDurationTimer() {
+  if (durationInterval) clearInterval(durationInterval);
+  durationInterval = setInterval(() => {
+    if (!startTime) return;
+    const sec = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(sec / 60), s = sec % 60;
+    document.getElementById('duration').textContent = m > 0 ? `${m}m${s}s` : `${s}s`;
+  }, 1000);
+}
+
+function stopDurationTimer() {
+  if (durationInterval) clearInterval(durationInterval);
+}
+
+// ---- Job History ----
+
+const jobHistory = [];
+
+function addJobToHistory(jobId, status) {
+  jobHistory.unshift({ jobId, status, time: new Date().toLocaleTimeString(), leads: 0 });
+  renderJobHistory();
+  document.getElementById('historyCard').style.display = '';
+}
+
+function updateJobHistory(jobId, status) {
+  const job = jobHistory.find(j => j.jobId === jobId);
+  if (job) { job.status = status; job.leads = allLeads.length; }
+  renderJobHistory();
+}
+
+function renderJobHistory() {
+  const list = document.getElementById('jobList');
+  list.innerHTML = jobHistory.slice(0, 8).map(j => `
+    <div class="job-item ${j.jobId === currentJobId ? 'active' : ''}" onclick="loadJob('${j.jobId}')">
+      <div>
+        <div style="font-weight:600;font-size:12px">${j.time}</div>
+        <div style="color:var(--text3);font-size:11px">${j.leads} leads</div>
+      </div>
+      <span class="job-status-badge badge-${j.status}">${j.status}</span>
+    </div>
+  `).join('');
+}
+
+async function loadJob(jobId) {
+  currentJobId = jobId;
+  allLeads = [];
+  clearTableRows();
+  const res = await fetch(`${API_BASE}/status/${jobId}`);
+  const data = await res.json();
+  allLeads = data.leads || [];
+  appendLeadsToTable(allLeads);
+  updateStatus(data);
+  renderJobHistory();
+
+  if (allLeads.length > 0) {
+    document.getElementById('excelBtn').disabled = false;
+    document.getElementById('sheetsBtn').disabled = false;
+  }
+}
+
+// ---- Utilities ----
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function shortUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace('www.', '');
+  } catch { return url.substring(0, 30); }
+}
+
+let notifTimer = null;
+function showNotif(msg, type = 'info') {
+  const area = document.getElementById('notifArea');
+  const div = document.createElement('div');
+  div.className = `notif ${type}`;
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  div.innerHTML = `<span>${icons[type] || ''}</span><span>${msg}</span>`;
+  area.innerHTML = '';
+  area.appendChild(div);
+  setTimeout(() => { div.style.opacity = '0'; div.style.transform = 'translateY(20px)'; div.style.transition = 'all 0.3s'; setTimeout(() => div.remove(), 300); }, 4000);
+}
+
+function toggleDark() {
+  // Already dark, this is a placeholder for future light mode
+  showNotif('Dark mode is default — light mode coming soon!', 'info');
+}
+
+// Init
+setUIState('idle');
+</script>
+</body>
+</html>

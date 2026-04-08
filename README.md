@@ -22,7 +22,7 @@ LeadMapper uses **Playwright** to automate a headless browser that navigates thr
 ### 1. Clone the Repository
 Open your terminal and run:
 ```bash
-git clone https://github.com/your-repo/leads-extractor.git
+git clone https://github.com/mauryatechnology/lead-map.git
 cd leads-extractor
 ```
 

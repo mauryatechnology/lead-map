@@ -118,4 +118,3 @@ docker-compose up --build
 - **Scroll Delay**: Keep the delay above 1.5s for stability.
 - **Max Results**: Set a limit for very large searches to manage memory.
 - **Headless Mode**: By default, it runs headless. You can toggle this in `backend/scraper/maps_scraper.py` for debugging.
-
